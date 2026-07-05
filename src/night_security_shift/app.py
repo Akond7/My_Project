@@ -1,13 +1,8 @@
 import pygame
 
-from night_security_shift.settings import (
-    DARK_GRAY,
-    FPS,
-    GAME_TITLE,
-    SCREEN_HEIGHT,
-    SCREEN_WIDTH,
-    WHITE,
-)
+from night_security_shift.settings import FPS, GAME_TITLE, SCREEN_HEIGHT, SCREEN_WIDTH
+from night_security_shift.states.game_state import GameState
+from night_security_shift.states.menu_state import MenuState
 from night_security_shift.utils.logger import setup_logger
 
 
@@ -22,8 +17,13 @@ class GameApp:
         pygame.display.set_caption(GAME_TITLE)
 
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 64)
         self.running = True
+
+        self.current_state_name = "menu"
+        self.states = {
+            "menu": MenuState(),
+            "playing": GameState(),
+        }
 
     def run(self):
         while self.running:
@@ -42,14 +42,33 @@ class GameApp:
             if event.type == pygame.QUIT:
                 self.logger.info("Window close button clicked")
                 self.running = False
+                continue
+
+            next_state = self.current_state.handle_event(event)
+
+            if next_state == "quit":
+                self.logger.info("Exit from menu")
+                self.running = False
+            elif next_state in self.states:
+                self.change_state(next_state)
+
+    def change_state(self, next_state):
+        if next_state == self.current_state_name:
+            return
+
+        self.logger.info(
+            "State changed: %s -> %s",
+            self.current_state_name,
+            next_state,
+        )
+        self.current_state_name = next_state
 
     def update(self):
-        pass
+        self.current_state.update()
 
     def draw(self):
-        self.screen.fill(DARK_GRAY)
+        self.current_state.draw(self.screen)
 
-        title = self.font.render(GAME_TITLE, True, WHITE)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-
-        self.screen.blit(title, title_rect)
+    @property
+    def current_state(self):
+        return self.states[self.current_state_name]
